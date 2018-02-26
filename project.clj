@@ -6,6 +6,7 @@
   :dependencies [[org.clojure/clojure "1.9.0"]
                  [org.clojure/clojurescript "1.9.946"]
                  [fulcrologic/fulcro "2.2.1"]
+                 [com.wsscode/pathom "2.0.0-beta2-SNAPSHOT"]
                  [fulcrologic/fulcro-sql "0.3.1"]
                  [org.postgresql/postgresql "42.1.4"]
                  [org.clojure/java.jdbc "0.7.5"]

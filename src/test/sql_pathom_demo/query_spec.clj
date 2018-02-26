@@ -3,7 +3,10 @@
     [fulcro-sql.test-helpers :refer [with-database]]
     [fulcro-sql.core :as sql]
     [clojure.java.jdbc :as jdbc]
-    [fulcro-spec.core :refer [specification provided behavior assertions]]))
+    [com.wsscode.pathom.core :as p]
+    [com.wsscode.pathom.connect :as pc]
+    [fulcro-spec.core :refer [specification provided behavior assertions]]
+    [clojure.set :as set]))
 
 (def test-database {:hikaricp-config "config/db-connection-pool.properties"
                     :auto-migrate?   true
@@ -24,6 +27,26 @@
    ::sql/graph->sql {}
    ::sql/pks        {}})
 
+(defmulti entity-resolver (fn [env {:keys [::pc/sym] :as resolver} entity] sym))
+
+(defmethod entity-resolver :default [_ _ _]
+  (println :resolving-fail)
+  {})
+
+(defmethod entity-resolver `account-resolver
+  [{:keys [db]} resolver {:keys [account/id]}]
+  (if-let [row (jdbc/query db ["SELECT name, settings_id FROM account WHERE id = ?" id] {:result-set-fn first})]
+    (set/rename-keys row {:name :account/name :settings_id :account/settings-id})
+    {}))
+
+(def indexes (-> {}
+               (pc/add `account-resolver {::pc/input  #{:account/id}
+                                          ::pc/output [:account/name :account/settings-id]})))
+
+(def parser
+  (p/parser {::p/plugins [(p/env-plugin {::p/reader             [p/map-reader pc/all-readers]
+                                         ::pc/resolver-dispatch entity-resolver
+                                         ::pc/indexes           indexes})]}))
 
 (specification "Setup Validation" :integration
   (with-database [db test-database]
@@ -33,3 +56,11 @@
       (assertions
         "Can insert and find a seeded account row"
         inserted-row => {:name "Joe"}))))
+
+(specification "Simple pathom resolver with connect" :integration :focused
+  (with-database [db test-database]
+    (let [{:keys [id/joe]} (sql/seed! db schema [(sql/seed-row :account {:id :id/joe :name "Joe"})])
+          row (parser {:db db} [{[:account/id joe] [:account/id :account/settings-id :account/name]}])]
+      (assertions
+        "Can insert and find a seeded account row"
+        row => {[:account/id joe] {:account/id joe :account/name "Joe"}}))))
