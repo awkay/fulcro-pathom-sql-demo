@@ -8,7 +8,8 @@
                  [fulcrologic/fulcro "2.2.1"]
                  [fulcrologic/fulcro-sql "0.3.1"]
                  [org.postgresql/postgresql "42.1.4"]
-                 [fulcrologic/fulcro-spec "2.0.2" :scope "test" :exclusions [fulcrologic/fulcro]]]
+                 [org.clojure/java.jdbc "0.7.5"]
+                 [fulcrologic/fulcro-spec "2.0.2-1" :scope "test" :exclusions [fulcrologic/fulcro]]]
 
   :uberjar-name "sql_pathom_demo.jar"
 
