@@ -4,7 +4,6 @@
     [com.stuartsierra.component :as component]
     [fulcro-spec.suite :as suite]
     [fulcro-spec.selectors :as sel]
-    [shadow.cljs.devtools.api :as shadow]
     sql-pathom-demo.server))
 ;; === SHADOW REPL ===
 
