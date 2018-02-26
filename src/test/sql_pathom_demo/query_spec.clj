@@ -65,6 +65,11 @@
                                      :item/quantity (:quantity r)}) rows)}
     {}))
 
+(defmethod entity-resolver `account-invoices-resolver [{:keys [db]} resolver {:keys [account/id]}]
+  (if-let [rows (jdbc/query db ["SELECT id FROM invoice WHERE account_id = ?" id])]
+    {:account/invoices (mapv (fn [r] {:invoice/id (:id r)}) rows)}
+    {}))
+
 (def indexes (-> {}
                (pc/add `account-resolver {::pc/input  #{:account/id}
                                           ::pc/output [:account/name {:account/settings [:settings/id]}]})
@@ -72,6 +77,8 @@
                (pc/add `invoice-resolver {::pc/input  #{:invoice/id}
                                           ::pc/output [{:invoice/account [:account/id]}
                                                        {:invoice/items [:item/id :item/quantity :item/name]}]})
+               (pc/add `account-invoices-resolver {::pc/input  #{:account/id}
+                                                   ::pc/output [{:account/invoices [:invoice/id]}]})
                (pc/add `settings-resolver {::pc/input  #{:settings/id}
                                            ::pc/output [:settings/auto-open? :settings/keyboard-shortcuts?]})))
 
@@ -113,12 +120,17 @@
                                 (sql/seed-row :invoice_items {:id :id/ii1-1 :quantity 2 :invoice_id :id/invoice-1 :item_id :id/item-1})
                                 (sql/seed-row :invoice_items {:id :id/ii1-2 :quantity 8 :invoice_id :id/invoice-1 :item_id :id/item-2})
                                 (sql/seed-row :invoice_items {:id :id/ii2-1 :quantity 33 :invoice_id :id/invoice-2 :item_id :id/item-1})])
-          row (parser {:db db} `[({:invoices [:invoice/id
-                                              {:invoice/account [:account/name]}
-                                              {:invoice/items [:item/quantity :item/name]}]}
-                                   {:have-item ~item-1})])]
+          row          (parser {:db db} `[({:invoices [:invoice/id
+                                                       {:invoice/account [:account/name]}
+                                                       {:invoice/items [:item/quantity :item/name]}]}
+                                            {:have-item ~item-1})])
+          joe-invoices (parser {:db db} [{[:account/id joe] [:account/name {:account/invoices [{:invoice/items [:item/name :item/quantity]}]}]}])]
       (assertions
         "Can insert and find a seeded account row"
+        joe-invoices => {[:account/id joe] {:account/name     "Joe"
+                                            :account/invoices [{:invoice/items [{:item/name "Widget 1" :item/quantity 2}
+                                                                                {:item/name "Widget 2" :item/quantity 8}]}
+                                                               {:invoice/items [{:item/name "Widget 1" :item/quantity 33}]}]}}
         row => {:invoices [{:invoice/id      invoice-1
                             :invoice/account {:account/name "Joe"}
                             :invoice/items   [{:item/quantity 2 :item/name "Widget 1"}
