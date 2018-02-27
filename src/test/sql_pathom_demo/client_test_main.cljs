@@ -5,12 +5,3 @@
 (suite/def-test-suite client-tests {:ns-regex #"sql-pathom-demo.*-spec"}
   {:default   #{::sel/none :focused}
    :available #{:focused}})
-
-(defn start []
-  (client-tests))
-
-(defn stop [done]
-  (done))
-
-(defn ^:export init []
-  (start))

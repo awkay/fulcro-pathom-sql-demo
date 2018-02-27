@@ -1,5 +1,7 @@
 {:port   3000
  :sqldbm {:db {:hikaricp-config "config/db-connection-pool.properties"
+               :driver          :h2
+               :database-name   "test"
                :auto-migrate?   true
                :create-drop?    true
                :migrations      ["classpath:migrations"]}}}

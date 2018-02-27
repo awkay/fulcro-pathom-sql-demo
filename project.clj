@@ -7,41 +7,28 @@
                  [org.clojure/clojurescript "1.9.946"]
                  [fulcrologic/fulcro "2.2.1"]
                  [com.wsscode/pathom "2.0.0-beta2-SNAPSHOT"]
-                 [fulcrologic/fulcro-sql "0.3.1"]
-                 [org.postgresql/postgresql "42.1.4"]
+                 [fulcrologic/fulcro-sql "0.3.2-SNAPSHOT"]
                  [org.clojure/java.jdbc "0.7.5"]
-                 [fulcrologic/fulcro-spec "2.0.2-1" :scope "test" :exclusions [fulcrologic/fulcro]]]
+                 [com.h2database/h2 "1.4.196"]
 
-  :uberjar-name "sql_pathom_demo.jar"
+                 ; logging all over timbre
+                 [com.taoensso/timbre "4.10.0"]
+                 [org.slf4j/log4j-over-slf4j "1.7.25" :scope "provided"]
+                 [org.slf4j/jul-to-slf4j "1.7.25" :scope "provided"]
+                 [org.slf4j/jcl-over-slf4j "1.7.25" :scope "provided"]
+                 [com.fzakaria/slf4j-timbre "0.3.7" :scope "provided"]
 
-  :source-paths ["src/main"]
+                 ; testing
+                 [fulcrologic/fulcro-spec "2.0.3-SNAPSHOT" :scope "test" :exclusions [fulcrologic/fulcro]]]
+
+  :source-paths ["src/dev"]
   :test-paths ["src/test"]
 
   :test-refresh {:report       fulcro-spec.reporters.terminal/fulcro-report
                  :with-repl    true
                  :changes-only true}
 
-  :profiles {:uberjar    {:main           sql-pathom-demo.server-main
-                          :aot            :all
-                          :jar-exclusions [#"public/js/test" #"public/js/cards" #"public/cards.html"]
-                          :prep-tasks     ["clean" ["clean"]
-                                           "compile" ["with-profile" "cljs" "run" "-m" "shadow.cljs.devtools.cli" "release" "main"]]}
-             :production {}
-             :cljs       {:source-paths ["src/main" "src/test" "src/cards"]
-                          :dependencies [[binaryage/devtools "0.9.9"]
-                                         [thheller/shadow-cljs "2.1.26"]
-                                         [org.clojure/core.async "0.3.465"]
-                                         [fulcrologic/fulcro-inspect "2.0.0-alpha5"]
-                                         [devcards "0.2.4" :exclusions [cljsjs/react cljsjs/react-dom]]]}
-             :dev        {:source-paths ["src/dev" "src/main" "src/cards"]
-                          :jvm-opts     ["-XX:-OmitStackTraceInFastThrow" "-client" "-XX:+TieredCompilation" "-XX:TieredStopAtLevel=1"
-                                         "-Xmx1g" "-XX:+UseConcMarkSweepGC" "-XX:+CMSClassUnloadingEnabled" "-Xverify:none"]
+  :jvm-opts ["-XX:-OmitStackTraceInFastThrow" "-client" "-XX:+TieredCompilation" "-XX:TieredStopAtLevel=1"
+             "-Xmx1g" "-XX:+UseConcMarkSweepGC" "-XX:+CMSClassUnloadingEnabled" "-Xverify:none"]
 
-                          :plugins      [[com.jakemccrary/lein-test-refresh "0.21.1"]]
-
-                          :dependencies [[org.clojure/tools.namespace "0.3.0-alpha4"]
-                                         [thheller/shadow-cljs "2.1.26"]
-                                         [org.clojure/tools.nrepl "0.2.13"]
-                                         [com.cemerick/piggieback "0.2.2"]]
-                          :repl-options {:init-ns          user
-                                         :nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}}})
+  :plugins [[com.jakemccrary/lein-test-refresh "0.21.1"]])
