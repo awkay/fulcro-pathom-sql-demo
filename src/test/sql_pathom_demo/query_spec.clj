@@ -27,33 +27,33 @@
    ::sql/graph->sql {}
    ::sql/pks        {}})
 
-(defmulti entity-resolver (fn [env {:keys [::pc/sym] :as resolver} entity] sym))
+(defmulti entity-resolver (fn r [env entity] (get-in env [::pc/resolver-data ::pc/sym])))
 
-(defmethod entity-resolver :default [_ _ _] {})
+(defmethod entity-resolver :default [_ _] {})
 
 (defmethod entity-resolver `account-resolver
-  [{:keys [db]} resolver {:keys [account/id]}]
+  [{:keys [db]} {:keys [account/id]}]
   (if-let [{:keys [name settings_id]} (jdbc/query db ["SELECT name, settings_id FROM account WHERE id = ?" id] {:result-set-fn first})]
     {:account/id id :account/name name :account/settings {:settings/id settings_id}}
     {}))
 
 (defmethod entity-resolver `settings-resolver
-  [{:keys [db]} resolver {:keys [settings/id]}]
+  [{:keys [db]} {:keys [settings/id]}]
   (println :settings id)
   (if-let [row (jdbc/query db ["SELECT auto_open, keyboard_shortcuts FROM settings WHERE id = ?" id] {:result-set-fn first})]
     (set/rename-keys row {:auto_open :settings/auto-open? :keyboard_shortcuts :settings/keyboard-shortcuts?})
     {}))
 
-(defmethod entity-resolver `invoices-resolver
-  [{{{:keys [have-item]} :params} :ast :keys [db] :as env} resolver entity]
+(defmethod entity-resolver `invoices-that-have-an-item-resolver
+  [{{{:keys [have-item]} :params} :ast :keys [db] :as env} entity]
   (if-let [rows (jdbc/query db ["SELECT DISTINCT invoice.id as invoice_id, invoice.account_id as account_id
                                 FROM invoice
                                 LEFT JOIN invoice_items ON invoice.id = invoice_items.invoice_id
                                 WHERE invoice_items.id IN (SELECT id FROM invoice_items WHERE item_id = ? ORDER BY invoice.id)" have-item])]
-    {:invoices (mapv (fn [r] {:invoice/id (:invoice_id r)}) rows)}
+    {:invoices/with-item (mapv (fn [r] {:invoice/id (:invoice_id r)}) rows)}
     {}))
 
-(defmethod entity-resolver `invoice-resolver [{:keys [db]} resolver {:keys [invoice/id]}]
+(defmethod entity-resolver `invoice-resolver [{:keys [db]} {:keys [invoice/id]}]
   (if-let [rows (jdbc/query db ["SELECT invoice.account_id as account_id, invoice_items.item_id as item_id, invoice_items.quantity as quantity, item.name as name
                                 FROM invoice
                                 LEFT JOIN invoice_items ON invoice_items.invoice_id = invoice.id
@@ -65,7 +65,7 @@
                                      :item/quantity (:quantity r)}) rows)}
     {}))
 
-(defmethod entity-resolver `account-invoices-resolver [{:keys [db]} resolver {:keys [account/id]}]
+(defmethod entity-resolver `account-invoices-resolver [{:keys [db]} {:keys [account/id]}]
   (if-let [rows (jdbc/query db ["SELECT id FROM invoice WHERE account_id = ?" id])]
     {:account/invoices (mapv (fn [r] {:invoice/id (:id r)}) rows)}
     {}))
@@ -73,7 +73,7 @@
 (def indexes (-> {}
                (pc/add `account-resolver {::pc/input  #{:account/id}
                                           ::pc/output [:account/name {:account/settings [:settings/id]}]})
-               (pc/add `invoices-resolver {::pc/output [{:invoices [:invoice/id]}]})
+               (pc/add `invoices-that-have-an-item-resolver {::pc/output [{:invoices/with-item [:invoice/id]}]})
                (pc/add `invoice-resolver {::pc/input  #{:invoice/id}
                                           ::pc/output [{:invoice/account [:account/id]}
                                                        {:invoice/items [:item/id :item/quantity :item/name]}]})
@@ -120,21 +120,22 @@
                                 (sql/seed-row :invoice_items {:id :id/ii1-1 :quantity 2 :invoice_id :id/invoice-1 :item_id :id/item-1})
                                 (sql/seed-row :invoice_items {:id :id/ii1-2 :quantity 8 :invoice_id :id/invoice-1 :item_id :id/item-2})
                                 (sql/seed-row :invoice_items {:id :id/ii2-1 :quantity 33 :invoice_id :id/invoice-2 :item_id :id/item-1})])
-          row          (parser {:db db} `[({:invoices [:invoice/id
-                                                       {:invoice/account [:account/name]}
-                                                       {:invoice/items [:item/quantity :item/name]}]}
-                                            {:have-item ~item-1})])
-          joe-invoices (parser {:db db} [{[:account/id joe] [:account/name {:account/invoices [{:invoice/items [:item/name :item/quantity]}]}]}])]
+          row          (jdbc/with-db-transaction [atomicdb db {:isolation :serializable}]
+                         (parser {:db atomicdb} `[{(:invoices/with-item {:have-item ~item-1}) [:invoice/id
+                                                                                               {:invoice/account [:account/name]}
+                                                                                               {:invoice/items [:item/quantity :item/name]}]}]))
+          joe-invoices (jdbc/with-db-transaction [atomicdb db {:isolation :serializable}]
+                         (parser {:db atomicdb} [{[:account/id joe] [:account/name {:account/invoices [{:invoice/items [:item/name :item/quantity]}]}]}]))]
       (assertions
         "Can insert and find a seeded account row"
         joe-invoices => {[:account/id joe] {:account/name     "Joe"
                                             :account/invoices [{:invoice/items [{:item/name "Widget 1" :item/quantity 2}
                                                                                 {:item/name "Widget 2" :item/quantity 8}]}
                                                                {:invoice/items [{:item/name "Widget 1" :item/quantity 33}]}]}}
-        row => {:invoices [{:invoice/id      invoice-1
-                            :invoice/account {:account/name "Joe"}
-                            :invoice/items   [{:item/quantity 2 :item/name "Widget 1"}
-                                              {:item/quantity 8 :item/name "Widget 2"}]}
-                           {:invoice/id      invoice-2
-                            :invoice/account {:account/name "Joe"}
-                            :invoice/items   [{:item/quantity 33 :item/name "Widget 1"}]}]}))))
+        row => {:invoices/with-item [{:invoice/id      invoice-1
+                                      :invoice/account {:account/name "Joe"}
+                                      :invoice/items   [{:item/quantity 2 :item/name "Widget 1"}
+                                                        {:item/quantity 8 :item/name "Widget 2"}]}
+                                     {:invoice/id      invoice-2
+                                      :invoice/account {:account/name "Joe"}
+                                      :invoice/items   [{:item/quantity 33 :item/name "Widget 1"}]}]}))))
