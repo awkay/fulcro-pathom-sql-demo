@@ -5,7 +5,6 @@
                     :driver          :h2
                     :auto-migrate?   true
                     :create-drop?    true
-
                     :migrations      ["classpath:migrations"]})
 
 (def schema

@@ -6,7 +6,7 @@
   :dependencies [[org.clojure/clojure "1.9.0"]
                  [org.clojure/clojurescript "1.9.946"]
                  [fulcrologic/fulcro "2.2.1"]
-                 [com.wsscode/pathom "2.0.0-beta2-SNAPSHOT"]
+                 [com.wsscode/pathom "2.0.0-beta2"]
                  [fulcrologic/fulcro-sql "0.3.2"]
                  [org.clojure/java.jdbc "0.7.5"]
                  [com.h2database/h2 "1.4.196"]
@@ -19,7 +19,7 @@
                  [com.fzakaria/slf4j-timbre "0.3.7" :scope "provided"]
 
                  ; testing
-                 [fulcrologic/fulcro-spec "2.0.3" :scope "test" :exclusions [fulcrologic/fulcro]]]
+                 [fulcrologic/fulcro-spec "2.0.3-1" :scope "test" :exclusions [fulcrologic/fulcro]]]
 
   :source-paths ["src/dev"]
   :test-paths ["src/test"]

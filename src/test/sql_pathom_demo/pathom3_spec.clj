@@ -1,4 +1,4 @@
-(ns sql-pathom-demo.pathom-connect-trial-spec
+(ns sql-pathom-demo.pathom3-spec
   (:require
     [fulcro-sql.test-helpers :refer [with-database]]
     [fulcro-sql.core :as sql]
@@ -68,23 +68,12 @@
                                          ::pc/resolver-dispatch entity-resolver
                                          ::pc/indexes           indexes})]}))
 
-(specification "Simple pathom resolver with connect" :integration
-  (with-database [db test-database]
-    (let [{:keys [id/joe id/settings]} (sql/seed! db schema [(sql/seed-row :account {:id :id/joe :name "Joe"})
-                                                             (sql/seed-row :settings {:id                 :id/settings
-                                                                                      :auto_open          false
-                                                                                      :keyboard_shortcuts true})
-                                                             (sql/seed-update :account :id/joe {:account/settings_id :id/settings})])
-          row (parser {:db db} [{[:account/id joe] [:account/id :account/name {:account/settings [:settings/auto-open?]}]}])]
-      (assertions
-        "Can insert and find a seeded account row"
-        row => {[:account/id joe] {:account/id       joe :account/name "Joe"
-                                   :account/settings {:settings/auto-open? false}}}))))
-
-(specification "Pathom query interpretation with join table data" :integration
+(specification "Pathom with complex many-to-many joins" :integration
   (with-database [db test-database]
     (let [{:keys [id/joe id/item-2 id/invoice-1 id/invoice-2]}
           (sql/seed! db schema [(sql/seed-row :account {:id :id/joe :name "Joe"})
+                                (sql/seed-row :settings {:id :id/settings :auto_open true})
+                                (sql/seed-update :account :id/joe {:settings_id :id/settings})
                                 (sql/seed-row :item {:id :id/item-1 :name "Widget 1"})
                                 (sql/seed-row :item {:id :id/item-2 :name "Widget 2"})
                                 (sql/seed-row :invoice {:id :id/invoice-1 :account_id :id/joe})
@@ -92,19 +81,25 @@
                                 (sql/seed-row :invoice_items {:id :id/ii1-1 :quantity 2 :invoice_id :id/invoice-1 :item_id :id/item-1})
                                 (sql/seed-row :invoice_items {:id :id/ii1-2 :quantity 8 :invoice_id :id/invoice-1 :item_id :id/item-2})
                                 (sql/seed-row :invoice_items {:id :id/ii2-1 :quantity 33 :invoice_id :id/invoice-2 :item_id :id/item-1})])
-          row          (jdbc/with-db-transaction [atomicdb db {:isolation :serializable}]
-                         (parser {:db atomicdb} `[{(:invoices/with-item {:item ~item-2}) [:invoice/id
-                                                                                          {:invoice/account [:account/name]}
-                                                                                          {:invoice/items [:item/quantity :item/name]}]}]))
-          joe-invoices (jdbc/with-db-transaction [atomicdb db {:isolation :serializable}]
-                         (parser {:db atomicdb} [{[:account/id joe] [:account/name {:account/invoices [{:invoice/items [:item/name :item/quantity]}]}]}]))]
+          run-query (fn [q] (parser {:db db} q))]
       (assertions
-        "Can insert and find a seeded account row"
-        joe-invoices => {[:account/id joe] {:account/name     "Joe"
-                                            :account/invoices [{:invoice/items [{:item/name "Widget 1" :item/quantity 2}
-                                                                                {:item/name "Widget 2" :item/quantity 8}]}
-                                                               {:invoice/items [{:item/name "Widget 1" :item/quantity 33}]}]}}
-        row => {:invoices/with-item [{:invoice/id      invoice-1
-                                      :invoice/account {:account/name "Joe"}
-                                      :invoice/items   [{:item/quantity 2 :item/name "Widget 1"}
-                                                        {:item/quantity 8 :item/name "Widget 2"}]}]}))))
+        "Can start at a specific account and navigate to invoices."
+        (run-query [{[:account/id joe] [:account/name
+                                        {:account/settings [:settings/auto-open?]}
+                                        {:account/invoices [{:invoice/items [:item/name :item/quantity]}]}]}])
+        => {[:account/id joe] {:account/name     "Joe"
+                               :account/settings {:settings/auto-open? true}
+                               :account/invoices [{:invoice/items [{:item/name "Widget 1" :item/quantity 2}
+                                                                   {:item/name "Widget 2" :item/quantity 8}]}
+                                                  {:invoice/items [{:item/name "Widget 1" :item/quantity 33}]}]}}
+        "Can find all invoices that contain a given item"
+        (run-query `[{(:invoices/with-item {:item ~item-2}) [:invoice/id
+                                                             {:invoice/items [:item/quantity :item/name]}]}])
+        => {:invoices/with-item [{:invoice/id    invoice-1
+                                  :invoice/items [{:item/quantity 2 :item/name "Widget 1"}
+                                                  {:item/quantity 8 :item/name "Widget 2"}]}]}
+        "Can navigate backwards from an invoice to an account"
+        (run-query `[{(:invoices/with-item {:item ~item-2}) [:invoice/id
+                                                             {:invoice/account [:account/name {:account/settings [:settings/auto-open?]}]}]}])
+        => {:invoices/with-item [{:invoice/id      invoice-1
+                                  :invoice/account {:account/name "Joe" :account/settings {:settings/auto-open? true}}}]}))))
