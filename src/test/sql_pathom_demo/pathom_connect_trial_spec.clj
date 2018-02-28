@@ -81,7 +81,7 @@
         row => {[:account/id joe] {:account/id       joe :account/name "Joe"
                                    :account/settings {:settings/auto-open? false}}}))))
 
-(specification "Pathom query interpretation with join table data" :integration :focused
+(specification "Pathom query interpretation with join table data" :integration
   (with-database [db test-database]
     (let [{:keys [id/joe id/item-2 id/invoice-1 id/invoice-2]}
           (sql/seed! db schema [(sql/seed-row :account {:id :id/joe :name "Joe"})
