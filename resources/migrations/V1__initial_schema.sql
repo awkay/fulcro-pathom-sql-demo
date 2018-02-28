@@ -15,6 +15,20 @@ CREATE TABLE account (
   spouse_id      INTEGER REFERENCES account (id)
 );
 
+CREATE SEQUENCE todo_list_id_seq;
+CREATE TABLE todo_list (
+  id   INTEGER DEFAULT nextval('todo_list_id_seq'),
+  name VARCHAR(200)
+);
+
+CREATE SEQUENCE todo_list_item_id_seq;
+CREATE TABLE todo_list_item (
+  id             INTEGER DEFAULT nextval('todo_list_item_id_seq'),
+  label          VARCHAR(200),
+  todo_list_id   INTEGER REFERENCES todo_list (id),
+  parent_item_id INTEGER REFERENCES todo_list_item (id)
+);
+
 CREATE SEQUENCE invoice_id_seq;
 CREATE TABLE invoice (
   id           INTEGER DEFAULT nextval('invoice_id_seq'),
@@ -36,16 +50,4 @@ CREATE TABLE invoice_items (
   item_id    INTEGER  NOT NULL REFERENCES item (id)
 );
 
-CREATE SEQUENCE todo_list_id_seq;
-CREATE TABLE todo_list (
-  id   INTEGER DEFAULT nextval('todo_list_id_seq'),
-  name VARCHAR(200)
-);
 
-CREATE SEQUENCE todo_list_item_id_seq;
-CREATE TABLE todo_list_item (
-  id             INTEGER DEFAULT nextval('todo_list_item_id_seq'),
-  label          VARCHAR(200),
-  todo_list_id   INTEGER REFERENCES todo_list (id),
-  parent_item_id INTEGER REFERENCES todo_list_item (id)
-);

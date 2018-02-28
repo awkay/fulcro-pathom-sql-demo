@@ -12,9 +12,9 @@
 ; Tests for both client and server
 (specification "Fulcro SQL Queries" :integration
   (with-database [db test-database]
-    (let [{:keys [list-1 item-1 item-2 item-1-1 item-1-1-1 item-2-1 item-2-2]}
-          (sql/seed! db schema [
-                                (sql/seed-row :todo_list {:id :list-1 :name "Things to do"})
+    (let [{:keys [list-1 item-1 item-2 item-1-1 item-1-1-1 item-2-1 item-2-2 list-2]}
+          (sql/seed! db schema [(sql/seed-row :todo_list {:id :list-1 :name "Things to do"})
+                                (sql/seed-row :todo_list {:id :list-2 :name "Other things to do"})
                                 (sql/seed-row :todo_list_item {:id :item-1 :label "A" :todo_list_id :list-1})
                                 (sql/seed-row :todo_list_item {:id :item-1-1 :label "A.1" :parent_item_id :item-1})
                                 (sql/seed-row :todo_list_item {:id :item-1-1-1 :label "A.1.1" :parent_item_id :item-1-1})

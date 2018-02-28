@@ -70,7 +70,7 @@
 
 (specification "Pathom with complex many-to-many joins" :integration
   (with-database [db test-database]
-    (let [{:keys [id/joe id/item-2 id/invoice-1 id/invoice-2]}
+    (let [{:keys [id/joe id/item-2 id/item-1 id/invoice-1 id/invoice-2]}
           (sql/seed! db schema [(sql/seed-row :account {:id :id/joe :name "Joe"})
                                 (sql/seed-row :settings {:id :id/settings :auto_open true})
                                 (sql/seed-update :account :id/joe {:settings_id :id/settings})
